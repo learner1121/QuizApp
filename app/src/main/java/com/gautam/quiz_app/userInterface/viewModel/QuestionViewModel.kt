@@ -35,42 +35,56 @@ class QuestionViewModel @Inject constructor(
         viewModelScope.launch {
             _quizUiState.update { it.copy(isLoading = true, error = null) }
 
-            // Try Room cache first
-            val cached = localRepo.getQuestionsBySection(section)
-            if (cached.isNotEmpty()) {
-                val questions = cached
-                    .filter { difficulty == "Easy" || it.marks == difficultyToMarks(difficulty) }
-                    .shuffled()
-                    .take(limit)
-                    .map { it.toDomain() }
-
-                _quizUiState.update {
-                    QuizUiState(questions = questions, isLoading = false)
-                }
-                return@launch
-            }
-
-            // Fallback to network
             try {
+                // Always hit the network — difficulty & limit are API concerns
                 val response = repo.getQuestion(section, limit, difficulty)
-                if (response.isSuccessful) {
-                    val questions = response.body()?.data ?: emptyList()  // ← extract .data
 
-                    // Cache locally
+                if (response.isSuccessful) {
+                    val questions = response.body()?.data ?: emptyList()
+
+                    // Write-through cache: store whatever the API returned
                     questions.forEach { q -> localRepo.addLocal(q.toLocal()) }
 
                     _quizUiState.update {
                         QuizUiState(questions = questions, isLoading = false)
                     }
                 } else {
-                    _quizUiState.update {
-                        it.copy(isLoading = false, error = "Failed to load questions (${response.code()})")
-                    }
+                    // Network failed — fall back to Room with client-side filtering
+                    fallbackToRoom(section, limit, difficulty)
                 }
+
             } catch (e: Exception) {
+                // No network — fall back to Room
+                fallbackToRoom(section, limit, difficulty)
+            }
+        }
+    }
+
+    private suspend fun fallbackToRoom(section: String, limit: Int, difficulty: String) {
+        val cached = localRepo.getQuestionsBySection(section)
+
+        if (cached.isNotEmpty()) {
+            val questions = cached
+                .filter { it.difficulty.equals(difficulty, ignoreCase = true) }
+                .shuffled()
+                .take(limit)
+                .map { it.toDomain() }
+
+            if (questions.isNotEmpty()) {
                 _quizUiState.update {
-                    it.copy(isLoading = false, error = e.message ?: "Unknown error")
+                    QuizUiState(questions = questions, isLoading = false)
                 }
+            } else {
+                _quizUiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "No cached questions for difficulty: $difficulty"
+                    )
+                }
+            }
+        } else {
+            _quizUiState.update {
+                it.copy(isLoading = false, error = "No internet and no cached questions")
             }
         }
     }

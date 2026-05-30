@@ -11,14 +11,21 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface QuestionDAO {
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun addQuestion(que: QuestionsLocal)
+    /*@Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun addQuestion(que: QuestionsLocal)*/
 
     @Delete
     suspend fun deleteQuestion(que: QuestionsLocal)
 
+   /* @Query("SELECT * FROM QuestionTable WHERE section = :section")
+    suspend fun getQuestion(section: String): List<QuestionsLocal>*/
+
     @Query("SELECT * FROM QuestionTable WHERE section = :section")
     suspend fun getQuestion(section: String): List<QuestionsLocal>
+
+    // Replace old @Insert to avoid duplicate primary key crashes
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertQuestion(question: QuestionsLocal)
 }
 
 @Dao

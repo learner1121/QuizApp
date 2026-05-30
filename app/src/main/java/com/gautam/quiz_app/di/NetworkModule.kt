@@ -35,14 +35,21 @@ object NetworkModule {
     }
     }
 
-    // okhttp client
+    // Inject AuthInterceptor into Hilt
+    @Provides
+    @Singleton
+    fun provideAuthInterceptor(): AuthInterceptor = AuthInterceptor()
+
+    // Update provideOkhttpClient to include AuthInterceptor
     @Provides
     @Singleton
     fun provideOkhttpClient(
-        loginInterceptor: HttpLoggingInterceptor
-    ): OkHttpClient{
+        loggingInterceptor: HttpLoggingInterceptor,
+        authInterceptor: AuthInterceptor          // ← add this
+    ): OkHttpClient {
         return OkHttpClient.Builder()
-            .addInterceptor(loginInterceptor)
+            .addInterceptor(authInterceptor)      // ← auth first
+            .addInterceptor(loggingInterceptor)   // ← then logging
             .connectTimeout(60, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .build()

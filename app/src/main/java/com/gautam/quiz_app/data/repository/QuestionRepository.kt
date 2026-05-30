@@ -36,10 +36,9 @@ class LocalQuestionRepository @Inject constructor(private val dao: QuestionDAO){
         return dao.getQuestion(section)
     }
 
-    //Add Question
-    suspend fun addLocal(questionsLocal: QuestionsLocal){
-        Log.d("RoomDebug", "Inserting question: ${questionsLocal.questionText}")
-        dao.addQuestion(questionsLocal)
+    suspend fun addLocal(questionsLocal: QuestionsLocal) {
+        Log.d("RoomDebug", "Upserting: ${questionsLocal.questionText}")
+        dao.upsertQuestion(questionsLocal)   // ← use upsert, not insert
     }
 }
 class ResultRepository @Inject constructor(private val dao: QuestionResultDao){
