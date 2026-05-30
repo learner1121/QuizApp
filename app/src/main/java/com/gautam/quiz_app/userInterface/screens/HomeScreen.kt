@@ -99,6 +99,9 @@ fun HomeScreen(navController: NavController){
                 Spacer(Modifier.height(8.dp))
                 ContentCards("Random Quiz",Color(0xFFC8E6C9), width =cardWidth.dp,
                     onClick = {navController.navigate("RandomSectionScreen")})
+                Spacer(Modifier.height(8.dp))
+                ContentCards("Play Quiz with AI",Color(0xFFF8BBD0), width =cardWidth.dp,
+                    onClick = {navController.navigate("aiSetup")})
 
             }
         }

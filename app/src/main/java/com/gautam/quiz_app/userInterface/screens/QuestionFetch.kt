@@ -18,6 +18,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.gautam.quiz_app.roomDb.QuestionDB
@@ -34,7 +35,7 @@ import com.gautam.quiz_app.ui.theme.poppinsFontFamily
 
 @Composable
 fun QuestionFetch(
-    viewModel: QuestionViewModel = viewModel(),
+    viewModel: QuestionViewModel = hiltViewModel(),
     section: String,
     navHostController: NavHostController,
     limit: Int
@@ -226,10 +227,11 @@ fun QuestionFetch(
 }
 
 @Composable
-fun RandomQuestionFetch(viewModel: QuestionViewModel = viewModel(),
+fun RandomQuestionFetch(viewModel: QuestionViewModel = hiltViewModel(),
                         section: String,
                         navHostController: NavHostController,
-                        limit: Int
+                        limit: Int,
+                        db: QuestionDB
 ) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp
@@ -366,7 +368,7 @@ fun RandomQuestionFetch(viewModel: QuestionViewModel = viewModel(),
                         )
 
                         CoroutineScope(Dispatchers.IO).launch {
-                            val db = QuestionDB.getDatabase(context)
+
                             db.quizResultDao().addScore(result)
                         }
                         Toast.makeText(

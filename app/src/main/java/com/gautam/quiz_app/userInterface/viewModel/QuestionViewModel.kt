@@ -1,41 +1,53 @@
 package com.gautam.quiz_app.userInterface.viewModel
 
 import Question
-import android.util.Log
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.*
+import com.gautam.quiz_app.data.model.AiQuestion
 import com.gautam.quiz_app.data.repository.LocalQuestionRepository
 import com.gautam.quiz_app.data.repository.QuestionRepository
 import com.gautam.quiz_app.data.repository.ResultRepository
 import com.gautam.quiz_app.roomDb.QuestionResult
 import com.gautam.quiz_app.roomDb.QuestionsLocal
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.Dispatcher
+import javax.inject.Inject
 
-
-class QuestionViewModel( private val repo: QuestionRepository,
+@HiltViewModel
+class QuestionViewModel @Inject constructor(
+    private val repo: QuestionRepository,
     private val localRepo: LocalQuestionRepository,
     private val resultRepo: ResultRepository
-    ) : ViewModel(){
+) : ViewModel() {
 
     private val _questions = MutableLiveData<List<Question>>()
-    val questions : LiveData<List<Question>> get() = _questions
+    val questions: LiveData<List<Question>> get() = _questions
 
+    // ---------------- AI STATE ---------------- //
+
+    private val _aiQuestions = MutableLiveData<List<AiQuestion>>()
+    val aiQuestions: LiveData<List<AiQuestion>> get() = _aiQuestions
+
+    private val _aiLoading = MutableLiveData<Boolean>()
+    val aiLoading: LiveData<Boolean> get() = _aiLoading
+
+    private val _aiError = MutableLiveData<String?>()
+    val aiError: LiveData<String?> get() = _aiError
+
+    fun setAiError(message: String) {
+        _aiError.value = message
+    }
+
+    // ---------------- NORMAL QUESTIONS ---------------- //
 
     fun getQuestion(section: String, limit: Int) {
         viewModelScope.launch {
-            val cached = withContext(Dispatchers.IO){
-                localRepo.getQuestionsBySection(section).also {
-                    Log.d("LocalRepo", "Cached questions size: ${it.size}")
-                }
+            val cached = withContext(Dispatchers.IO) {
+                localRepo.getQuestionsBySection(section)
             }
 
-            if (cached.isNotEmpty()){
+            if (cached.isNotEmpty()) {
                 _questions.value = cached.map {
                     Question(
                         questionText = it.questionText,
@@ -45,27 +57,24 @@ class QuestionViewModel( private val repo: QuestionRepository,
                         marks = it.marks
                     )
                 }
-            }
-            else{
+            } else {
                 try {
-                    val response = withContext(Dispatchers.IO){repo.getQuestion(section,limit)}
-                    if (response.isSuccessful ) {
+                    val response = repo.getQuestion(section, limit)
+                    if (response.isSuccessful) {
                         response.body()?.let { list ->
                             _questions.value = list
-                            // Step 3: Save to local DB
+
                             list.forEach { question ->
-                                val localQuestion = QuestionsLocal(
+                                val local = QuestionsLocal(
                                     questionText = question.questionText,
                                     options = question.options,
                                     correctAnswer = question.correctAnswer,
                                     section = question.section,
                                     marks = question.marks
                                 )
-                                localRepo.addLocal(localQuestion)
+                                localRepo.addLocal(local)
                             }
                         }
-                    } else {
-                        println("Error: ${response.code()}")
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -74,64 +83,73 @@ class QuestionViewModel( private val repo: QuestionRepository,
         }
     }
 
-    fun addQuestion(section: String, question: Question,limit: Int){
+    // ---------------- AI FUNCTION ---------------- //
+
+    fun generateAiQuestion(
+        topic: String,
+        count: Int,
+        difficulty: String
+    ) {
         viewModelScope.launch {
-           try {
-               repo.addQuestion(section,question)
-               getQuestion(section,limit)
-           }catch (e: Exception){
-               e.printStackTrace()
-           }
+
+            _aiLoading.value = true
+            _aiError.value = null
+            _aiQuestions.value = emptyList()
+
+            try {
+                val response = repo.generateQuestion(topic, difficulty, count)
+
+                if (response.isSuccessful) {
+                    _aiQuestions.value = response.body() ?: emptyList()
+                } else {
+                    _aiError.value = "Failed: ${response.code()}"
+                }
+
+            } catch (e: Exception) {
+                _aiError.value = e.message
+            }
+
+            _aiLoading.value = false
         }
     }
-    // Get Random Question
-    private val _randomQuestion = MutableLiveData<List<Question>>()
-    val randomQuestion : LiveData<List<Question>> get() = _randomQuestion
 
-    fun randomQuestion(section: String, limit: Int){
+    // ---------------- REST (UNCHANGED) ---------------- //
+
+    fun addQuestion(section: String, question: Question, limit: Int) {
+        viewModelScope.launch {
+            repo.addQuestion(section, question)
+            getQuestion(section, limit)
+        }
+    }
+
+    private val _randomQuestion = MutableLiveData<List<Question>>()
+    val randomQuestion: LiveData<List<Question>> = _randomQuestion
+
+    fun randomQuestion(section: String, limit: Int) {
         viewModelScope.launch {
             try {
-                val  respone1 = repo.randomQuestions(section,limit)
-                if (respone1.isSuccessful){
-                    _randomQuestion.value = respone1.body()
+                val response = repo.randomQuestions(section, limit)
+                if (response.isSuccessful) {
+                    _randomQuestion.value = response.body()
                 }
             } catch (e: Exception) {
-               e.printStackTrace()
-            }
-        }
-    }
-
-    fun addResult(result: QuestionResult){
-        viewModelScope.launch {
-            try {
-                resultRepo.addScore(result)
-            }catch (e: Exception){
                 e.printStackTrace()
             }
         }
     }
+
+    fun addResult(result: QuestionResult) {
+        viewModelScope.launch {
+            resultRepo.addScore(result)
+        }
+    }
+
     private val _allResults = MutableLiveData<List<QuestionResult>>()
     val allResults: LiveData<List<QuestionResult>> = _allResults
-    fun getScore(){
-        viewModelScope.launch {
-            try {
-               _allResults.value = resultRepo.getScore()
-            }catch (e: Exception){
-                e.printStackTrace()
-            }
-        }
-    }
-}
-class QuestionViewModelFactory(
-    private val repo: QuestionRepository,
-    private val localRepo: LocalQuestionRepository,
-    private val resultRepo: ResultRepository
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(QuestionViewModel::class.java)) {
-            return QuestionViewModel(repo, localRepo,resultRepo) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
-    }
-}
 
+    fun getScore() {
+        viewModelScope.launch {
+            _allResults.value = resultRepo.getScore()
+        }
+    }
+}

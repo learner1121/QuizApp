@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
     id("com.google.devtools.ksp")
+    id ("com.google.dagger.hilt.android")
 }
 
 android {
@@ -92,6 +93,15 @@ dependencies {
 
     //Downloadable Fonts
     implementation("androidx.compose.ui:ui-text-google-fonts:1.9.3")
+
+    // hilt dependencies
+    implementation ("com.google.dagger:hilt-android:2.48")
+
+    // instead of kapt
+    ksp ("com.google.dagger:hilt-compiler:2.48")
+
+    // for ViewModel + Compose
+    implementation ("androidx.hilt:hilt-navigation-compose:1.1.0")
 
 }
 configurations.all {

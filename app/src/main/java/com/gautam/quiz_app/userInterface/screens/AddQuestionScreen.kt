@@ -102,7 +102,7 @@ fun addQuestion(viewModel: QuestionViewModel = viewModel(),modifier: Modifier ,l
                     correctAnswer = options[selectedIndex],
                     marks = marks.toInt(),
                 )
-                viewModel.addQuestion(section,question,limit)
+                //viewModel.addQuestion(section,question,limit)
                 Toast.makeText(context,"Question Added", Toast.LENGTH_SHORT).show()
             }
         }) {

@@ -12,7 +12,9 @@ import com.gautam.quiz_app.ui.theme.QuizAppTheme
 import com.gautam.quiz_app.userInterface.viewModel.QuestionViewModel
 import androidx.credentials.CredentialManager
 import com.gautam.quiz_app.navigation.AppHost
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     //  Credential Manager instance
