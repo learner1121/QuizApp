@@ -1,13 +1,10 @@
 package com.gautam.quiz_app.data.repository
 
 
-import Question
-import android.content.Context
 import android.util.Log
-import androidx.compose.runtime.ProvidableCompositionLocal
-import androidx.lifecycle.LiveData
-import com.gautam.quiz_app.data.model.AiQuestion
-import com.gautam.quiz_app.data.model.GenerateRequest
+import com.gautam.quiz_app.data.model.HistoryEntry
+import com.gautam.quiz_app.data.model.Question
+import com.gautam.quiz_app.data.model.QuizResponse
 import com.gautam.quiz_app.data.remote.QuizApi
 import com.gautam.quiz_app.roomDb.QuestionDAO
 import com.gautam.quiz_app.roomDb.QuestionResult
@@ -21,21 +18,13 @@ class QuestionRepository @Inject constructor(
 ) {
 
     //Retrofit API
-    suspend fun getQuestion(section :String , limit: Int) = api.getQuestion(section,limit)
+    suspend fun getQuestion(section :String , limit: Int,difficulty: String): Response<QuizResponse> = api.getQuestion(section,difficulty, limit)
+
+    suspend fun postResult(entry: HistoryEntry) = api.postResult(entry)
     suspend fun addQuestion (section: String,question: Question) =api.addQuestion(section,question)
-    suspend fun randomQuestions(section: String, limit: Int) = api.randomQuestions(section,limit)
+    suspend fun randomQuestions(section: String, limit: Int,difficulty: String): Response<QuizResponse> = api.randomQuestions(section,difficulty,limit)
 
-    // ai question
-    suspend fun generateQuestion(
-        topic: String,
-        difficulty: String,
-        count: Int
-    ): Response<List<AiQuestion>> {
 
-        return api.generateQuestion(
-            GenerateRequest(topic, difficulty, count)
-        )
-    }
 }
 
 class LocalQuestionRepository @Inject constructor(private val dao: QuestionDAO){

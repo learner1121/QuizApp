@@ -1,155 +1,218 @@
 package com.gautam.quiz_app.userInterface.viewModel
 
-import Question
-import androidx.lifecycle.*
-import com.gautam.quiz_app.data.model.AiQuestion
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.gautam.quiz_app.data.model.Question
+import com.gautam.quiz_app.data.model.QuizResultUiModel
 import com.gautam.quiz_app.data.repository.LocalQuestionRepository
 import com.gautam.quiz_app.data.repository.QuestionRepository
-import com.gautam.quiz_app.data.repository.ResultRepository
-import com.gautam.quiz_app.roomDb.QuestionResult
 import com.gautam.quiz_app.roomDb.QuestionsLocal
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import kotlin.collections.lastIndex
 
 @HiltViewModel
 class QuestionViewModel @Inject constructor(
-    private val repo: QuestionRepository,
-    private val localRepo: LocalQuestionRepository,
-    private val resultRepo: ResultRepository
+    private val repo      : QuestionRepository,
+    private val localRepo : LocalQuestionRepository
 ) : ViewModel() {
 
-    private val _questions = MutableLiveData<List<Question>>()
-    val questions: LiveData<List<Question>> get() = _questions
+    // ── Quiz UI state ──────────────────────────────────────────────────────
+    private val _quizUiState = MutableStateFlow(QuizUiState())
+    val quizUiState: StateFlow<QuizUiState> = _quizUiState.asStateFlow()
 
-    // ---------------- AI STATE ---------------- //
+    private var timerJob: Job? = null
 
-    private val _aiQuestions = MutableLiveData<List<AiQuestion>>()
-    val aiQuestions: LiveData<List<AiQuestion>> get() = _aiQuestions
-
-    private val _aiLoading = MutableLiveData<Boolean>()
-    val aiLoading: LiveData<Boolean> get() = _aiLoading
-
-    private val _aiError = MutableLiveData<String?>()
-    val aiError: LiveData<String?> get() = _aiError
-
-    fun setAiError(message: String) {
-        _aiError.value = message
-    }
-
-    // ---------------- NORMAL QUESTIONS ---------------- //
-
-    fun getQuestion(section: String, limit: Int) {
+    // ── Fetch questions (normal, section-based) ────────────────────────────
+    fun fetchQuestions(section: String, limit: Int, difficulty: String) {
         viewModelScope.launch {
-            val cached = withContext(Dispatchers.IO) {
-                localRepo.getQuestionsBySection(section)
-            }
+            _quizUiState.update { it.copy(isLoading = true, error = null) }
 
+            // Try Room cache first
+            val cached = localRepo.getQuestionsBySection(section)
             if (cached.isNotEmpty()) {
-                _questions.value = cached.map {
-                    Question(
-                        questionText = it.questionText,
-                        section = it.section,
-                        options = it.options,
-                        correctAnswer = it.correctAnswer,
-                        marks = it.marks
-                    )
-                }
-            } else {
-                try {
-                    val response = repo.getQuestion(section, limit)
-                    if (response.isSuccessful) {
-                        response.body()?.let { list ->
-                            _questions.value = list
+                val questions = cached
+                    .filter { difficulty == "Easy" || it.marks == difficultyToMarks(difficulty) }
+                    .shuffled()
+                    .take(limit)
+                    .map { it.toDomain() }
 
-                            list.forEach { question ->
-                                val local = QuestionsLocal(
-                                    questionText = question.questionText,
-                                    options = question.options,
-                                    correctAnswer = question.correctAnswer,
-                                    section = question.section,
-                                    marks = question.marks
-                                )
-                                localRepo.addLocal(local)
-                            }
-                        }
+                _quizUiState.update {
+                    QuizUiState(questions = questions, isLoading = false)
+                }
+                return@launch
+            }
+
+            // Fallback to network
+            try {
+                val response = repo.getQuestion(section, limit, difficulty)
+                if (response.isSuccessful) {
+                    val questions = response.body()?.data ?: emptyList()  // ← extract .data
+
+                    // Cache locally
+                    questions.forEach { q -> localRepo.addLocal(q.toLocal()) }
+
+                    _quizUiState.update {
+                        QuizUiState(questions = questions, isLoading = false)
                     }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
-        }
-    }
-
-    // ---------------- AI FUNCTION ---------------- //
-
-    fun generateAiQuestion(
-        topic: String,
-        count: Int,
-        difficulty: String
-    ) {
-        viewModelScope.launch {
-
-            _aiLoading.value = true
-            _aiError.value = null
-            _aiQuestions.value = emptyList()
-
-            try {
-                val response = repo.generateQuestion(topic, difficulty, count)
-
-                if (response.isSuccessful) {
-                    _aiQuestions.value = response.body() ?: emptyList()
                 } else {
-                    _aiError.value = "Failed: ${response.code()}"
+                    _quizUiState.update {
+                        it.copy(isLoading = false, error = "Failed to load questions (${response.code()})")
+                    }
                 }
-
             } catch (e: Exception) {
-                _aiError.value = e.message
+                _quizUiState.update {
+                    it.copy(isLoading = false, error = e.message ?: "Unknown error")
+                }
             }
-
-            _aiLoading.value = false
         }
     }
 
-    // ---------------- REST (UNCHANGED) ---------------- //
-
-    fun addQuestion(section: String, question: Question, limit: Int) {
+    // ── Fetch questions (random) ───────────────────────────────────────────
+    fun fetchRandomQuestions(section: String, limit: Int, difficulty: String) {
         viewModelScope.launch {
-            repo.addQuestion(section, question)
-            getQuestion(section, limit)
+            _quizUiState.update { it.copy(isLoading = true, error = null) }
+            try {
+                val response = repo.randomQuestions(section, limit, difficulty)
+                if (response.isSuccessful) {
+                    val questions = response.body()?.data ?: emptyList()  // ← extract .data
+                    _quizUiState.update {
+                        QuizUiState(questions = questions, isLoading = false)
+                    }
+                } else {
+                    _quizUiState.update {
+                        it.copy(isLoading = false, error = "Failed (${response.code()})")
+                    }
+                }
+            } catch (e: Exception) {
+                _quizUiState.update {
+                    it.copy(isLoading = false, error = e.message ?: "Unknown error")
+                }
+            }
         }
     }
 
-    private val _randomQuestion = MutableLiveData<List<Question>>()
-    val randomQuestion: LiveData<List<Question>> = _randomQuestion
+    // ── Timer ──────────────────────────────────────────────────────────────
+    fun startTimer(seconds: Int) {
+        timerJob?.cancel()
+        _quizUiState.update { it.copy(timeLeft = seconds) }
 
-    fun randomQuestion(section: String, limit: Int) {
+        timerJob = viewModelScope.launch {
+            for (remaining in seconds downTo 0) {
+                _quizUiState.update { it.copy(timeLeft = remaining) }
+                if (remaining == 0) {
+                    autoAdvance()
+                    break
+                }
+                delay(1_000L)
+            }
+        }
+    }
+
+    private fun autoAdvance() {
+        val state = _quizUiState.value
+        val next  = state.currentIndex + 1
+        if (next < state.questions.size) {
+            _quizUiState.update { it.copy(currentIndex = next) }
+        }
+    }
+
+    // ── Navigation ─────────────────────────────────────────────────────────
+    fun goToNext(timerPerQuestion: Int) {
+        timerJob?.cancel()
+        _quizUiState.update { state ->
+            val next = (state.currentIndex + 1).coerceAtMost(state.questions.lastIndex)
+            state.copy(currentIndex = next)
+        }
+    }
+
+    fun goToPrev() {
+        timerJob?.cancel()
+        _quizUiState.update { state ->
+            val prev = (state.currentIndex - 1).coerceAtLeast(0)
+            state.copy(currentIndex = prev)
+        }
+    }
+
+    fun selectAnswer(option: String) {
+        _quizUiState.update { state ->
+            val updated = state.answers + (state.currentIndex to option)
+            state.copy(answers = updated)
+        }
+    }
+
+    fun submitQuiz(totalSeconds: Int) {
+        timerJob?.cancel()
+        _quizUiState.update { it.copy(timeTaken = totalSeconds - it.timeLeft) }
+    }
+
+    // ── Reset (call when leaving quiz) ─────────────────────────────────────
+    fun resetQuiz() {
+        timerJob?.cancel()
+        _quizUiState.value = QuizUiState()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        timerJob?.cancel()
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    private fun difficultyToMarks(difficulty: String): Int = when (difficulty) {
+        "Medium" -> 2
+        "Hard"   -> 3
+        else     -> 1
+    }
+
+    private fun QuestionsLocal.toDomain() = Question(
+        questionText  = questionText,
+        section       = section,
+        options       = options,
+        correctAnswer = correctAnswer,
+        difficulty    = difficulty,
+        explanation   = explanation,
+        marks         = marks,
+        isActive      = isActive
+    )
+
+    private fun Question.toLocal() = QuestionsLocal(
+        questionText  = questionText,
+        section       = section,
+        options       = options,
+        correctAnswer = correctAnswer,
+        difficulty    = difficulty,
+        explanation   = explanation,
+        marks         = marks,
+        isActive      = isActive
+    )
+
+    // ── Submit result to backend if user is logged in ──────────────────────
+    fun submitResultIfAuthenticated(result: QuizResultUiModel) {
+        val user = com.gautam.quiz_app.auth.FirebaseInstanceProvider
+            .firebaseAuthInstance.currentUser ?: return
+
         viewModelScope.launch {
             try {
-                val response = repo.randomQuestions(section, limit)
-                if (response.isSuccessful) {
-                    _randomQuestion.value = response.body()
-                }
+                val payload = com.gautam.quiz_app.data.model.HistoryEntry(
+                    userId     = user.uid,
+                    section    = result.section,
+                    difficulty = result.difficulty,
+                    score      = result.correct,
+                    total      = result.total,
+                    timeTaken  = result.timeTaken,
+                    date       = System.currentTimeMillis()
+                )
+                repo.postResult(payload)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
-        }
-    }
-
-    fun addResult(result: QuestionResult) {
-        viewModelScope.launch {
-            resultRepo.addScore(result)
-        }
-    }
-
-    private val _allResults = MutableLiveData<List<QuestionResult>>()
-    val allResults: LiveData<List<QuestionResult>> = _allResults
-
-    fun getScore() {
-        viewModelScope.launch {
-            _allResults.value = resultRepo.getScore()
         }
     }
 }

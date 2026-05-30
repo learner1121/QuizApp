@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -18,9 +20,14 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.app.ui.LoginScreen
 import com.gautam.quiz_app.auth.FirebaseInstanceProvider
-import com.gautam.quiz_app.userInterface.screens.AiQuizScreen
+import com.gautam.quiz_app.data.model.QuizResultUiModel
+import com.gautam.quiz_app.userInterface.screens.HistoryScreen
 import com.gautam.quiz_app.userInterface.screens.HomeScreen
-import com.gautam.quiz_app.userInterface.screens.QuestionFetch
+import com.gautam.quiz_app.userInterface.screens.LeaderboardScreen
+import com.gautam.quiz_app.userInterface.screens.ProfileScreen
+/*import com.gautam.quiz_app.userInterface.screens.QuestionFetch*/
+import com.gautam.quiz_app.userInterface.screens.QuizResultScreen
+import com.gautam.quiz_app.userInterface.screens.QuizScreen
 import com.gautam.quiz_app.userInterface.screens.QuizSetupScreen
 import com.gautam.quiz_app.userInterface.screens.RandomSectionScreen
 import com.gautam.quiz_app.userInterface.screens.SectionScreen
@@ -50,10 +57,10 @@ fun AppHost(innerPadding: PaddingValues) {
         }
 
         composable("SectionScreen") {
-            SectionScreen(questionViewModel, navHostController)
+            SectionScreen( navHostController)
         }
 
-        composable(
+        /*composable(
             route = "QuestionFetch/{section}",
             arguments = listOf(navArgument("section") { type = NavType.StringType })
         ) { backStackEntry ->
@@ -65,56 +72,98 @@ fun AppHost(innerPadding: PaddingValues) {
                 navHostController = navHostController,
                 limit = 10
             )
-        }
+        }*/
 
         composable("login") { LoginScreen(navHostController) }
 
-        composable("aiSetup") {
-            QuizSetupScreen { topic, count, difficulty ->
 
-                // call API
-                questionViewModel.generateAiQuestion(topic, count,difficulty)
 
-                // navigate to play screen
-                navHostController.navigate("aiPlay")
-            }
+        // Replace the old "aiSetup" composable and add these two routes:
+
+// ── Quiz Setup (Normal + Random) ───────────────────────────────────────────────
+        composable(
+            route = "quizSetup/{section}/{isRandom}",
+            arguments = listOf(
+                navArgument("section")  { type = NavType.StringType },
+                navArgument("isRandom") { type = NavType.BoolType }
+            )
+        ) { backStackEntry ->
+            val section  = backStackEntry.arguments?.getString("section")  ?: ""
+            val isRandom = backStackEntry.arguments?.getBoolean("isRandom") ?: false
+
+            QuizSetupScreen(
+                navController    = navHostController,
+                section          = section,
+                isRandom         = isRandom
+            )
         }
 
-        //  STEP 2: Play Screen
-        composable("aiPlay") {
+// ── Quiz Play ──────────────────────────────────────────────────────────────────
+        composable(
+            route = "quizPlay/{section}/{difficulty}/{questionCount}/{timerPerQuestion}/{isRandom}",
+            arguments = listOf(
+                navArgument("section")          { type = NavType.StringType },
+                navArgument("difficulty")       { type = NavType.StringType },
+                navArgument("questionCount")    { type = NavType.IntType    },
+                navArgument("timerPerQuestion") { type = NavType.IntType    },
+                navArgument("isRandom")         { type = NavType.BoolType   }
+            )
+        ) { backStackEntry ->
+            val section          = backStackEntry.arguments?.getString("section")          ?: ""
+            val difficulty       = backStackEntry.arguments?.getString("difficulty")       ?: "Easy"
+            val questionCount    = backStackEntry.arguments?.getInt("questionCount")       ?: 10
+            val timerPerQuestion = backStackEntry.arguments?.getInt("timerPerQuestion")    ?: 60
+            val isRandom         = backStackEntry.arguments?.getBoolean("isRandom")        ?: false
 
-            val aiQuestions = questionViewModel.aiQuestions.observeAsState()
-            val loading = questionViewModel.aiLoading.observeAsState()
+            // Replace with your QuizScreen composable when it exists
+            // QuizScreen(section, difficulty, questionCount, timerPerQuestion, isRandom, navHostController)
+            QuizScreen(
+                navController    = navHostController,
+                section          = section,
+                difficulty       = difficulty,
+                questionCount    = questionCount,
+                timerPerQuestion = timerPerQuestion,
+                isRandom         = isRandom
+            )
+        }
+        // AppHost.kt — replace the stub quizResult composable
 
-            when {
-                loading.value == true -> {
-                    Box(Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center){
-                        CircularProgressIndicator()
-                    }
-                }
+        composable(
+            route = "quizResult/{section}/{difficulty}",
+            arguments = listOf(
+                navArgument("section")    { type = NavType.StringType },
+                navArgument("difficulty") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val section    = backStackEntry.arguments?.getString("section")    ?: ""
+            val difficulty = backStackEntry.arguments?.getString("difficulty") ?: "Easy"
 
-                aiQuestions.value != null && aiQuestions.value!!.isNotEmpty() -> {
-                    AiQuizScreen(
-                        questions = aiQuestions.value!!,
-                        onBack = { navHostController.popBackStack() }
-                    )
-                }
+            val quizState by questionViewModel.quizUiState.collectAsState()
 
-                else -> {
-                    Box(Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center){
-                        Text("No questions found")
-                    }
+            // Build result model from shared ViewModel state
+            val result = QuizResultUiModel(
+                section = section,
+                difficulty = difficulty,
+                score = quizState.answers.values
+                    .zip(quizState.questions)
+                    .count { (ans, q) -> ans == q.correctAnswer },
+                total = quizState.questions.size,
+                timeTaken = quizState.timeTaken,
+                answers = quizState.answers,
+                questions = quizState.questions
+            )
 
-                }
-            }
+            QuizResultScreen(
+                navController = navHostController,
+                result        = result,
+                viewModel     = questionViewModel
+            )
         }
 
         composable("RandomSectionScreen") {
             RandomSectionScreen(navHostController)
         }
-        composable(
+       /* composable(
             route = "RandomSection/{section}",
             arguments = listOf(navArgument("section") { type = NavType.StringType })
         ) { backStackEntry ->
@@ -127,6 +176,16 @@ fun AppHost(innerPadding: PaddingValues) {
                 navHostController = navHostController,
                 limit = 10
             )
+        }*/
+        composable("history") {
+            HistoryScreen(navController = navHostController)
+        }
+
+        composable("leaderboard") {
+            LeaderboardScreen(navController = navHostController)
+        }
+        composable("profile") {
+            ProfileScreen(navController = navHostController)
         }
     }
 }

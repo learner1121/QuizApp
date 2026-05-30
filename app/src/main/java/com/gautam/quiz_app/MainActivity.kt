@@ -17,13 +17,9 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    //  Credential Manager instance
-    private val credentialManager by lazy {
-        CredentialManager.create(this)
-    }
 
-    //  ViewModel
- val questionViewModel: QuestionViewModel by viewModels()
+
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

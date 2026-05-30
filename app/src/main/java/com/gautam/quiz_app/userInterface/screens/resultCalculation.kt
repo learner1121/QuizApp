@@ -1,3 +1,4 @@
+/*
 package com.gautam.quiz_app.userInterface.screens
 
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,3 +25,4 @@ fun ResultCalculation(viewModel: QuestionViewModel) {
     }
 }
 
+*/

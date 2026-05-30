@@ -73,7 +73,7 @@ fun RandomSectionScreen( navHostController: NavHostController){
             Card(
                 onClick = {
                     Modifier.fillMaxWidth()
-                    navHostController.navigate("RandomSection/$section")
+                    navHostController.navigate("quizSetup/$section/true")
                 }, Modifier.fillMaxWidth()
                     .height(height),
                 elevation = CardDefaults.cardElevation(4.dp),

@@ -37,7 +37,7 @@ import com.gautam.quiz_app.ui.theme.poppinsFontFamily
 import com.gautam.quiz_app.userInterface.viewModel.QuestionViewModel
 
 @Composable
-fun SectionScreen(viewModel: QuestionViewModel, navHostController: NavHostController){
+fun SectionScreen(navHostController: NavHostController){
 
     val sections = listOf(
         "OOPs" to R.drawable.oops,
@@ -76,7 +76,7 @@ fun SectionScreen(viewModel: QuestionViewModel, navHostController: NavHostContro
 
         sections.forEach { (sectionName, imageRes) ->
             Card(
-                onClick = { navHostController.navigate("QuestionFetch/$sectionName") },
+                onClick = { navHostController.navigate("quizSetup/$sectionName/false") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(100.dp),

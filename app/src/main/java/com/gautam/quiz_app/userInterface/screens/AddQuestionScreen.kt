@@ -1,6 +1,6 @@
 package com.gautam.quiz_app.userInterface.screens
 
-import Question
+
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gautam.quiz_app.data.model.Question
 import com.gautam.quiz_app.userInterface.viewModel.QuestionViewModel
 
 @Composable

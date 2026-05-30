@@ -65,7 +65,15 @@ fun HomeScreen(navController: NavController){
                     Button(onClick = {navController.navigate("HomeScreen")}) {Text("Home", Modifier.fillMaxWidth(), style = style) }
                     Button(onClick = {navController.navigate("SectionScreen")}) {Text("Sections", Modifier.fillMaxWidth(), style = style) }
                     Button(onClick = {navController.navigate("RandomSectionScreen")}) {Text("RandomQuestion", Modifier.fillMaxWidth(), style = style) }
-                    Button(onClick = {navController.navigate("Profile")}) {Text("User's Profile", Modifier.fillMaxWidth(), style = style) }
+                    Button(onClick = { navController.navigate("history") }) {
+                        Text("History", Modifier.fillMaxWidth(), style = style)
+                    }
+                    Button(onClick = { navController.navigate("leaderboard") }) {
+                        Text("Leaderboard", Modifier.fillMaxWidth(), style = style)
+                    }
+                    Button(onClick = { navController.navigate("profile") }) {
+                        Text("Profile", Modifier.fillMaxWidth(), style = style)
+                    }
                     //Button(onClick = {navController.navigate("SignUp")}) {Text("feedBack", Modifier.fillMaxWidth(), style = style) }
                     //Button(onClick = {navController.navigate("Result")}) {Text("Result", Modifier.fillMaxWidth(), style = style) }
                 }
@@ -100,8 +108,6 @@ fun HomeScreen(navController: NavController){
                 ContentCards("Random Quiz",Color(0xFFC8E6C9), width =cardWidth.dp,
                     onClick = {navController.navigate("RandomSectionScreen")})
                 Spacer(Modifier.height(8.dp))
-                ContentCards("Play Quiz with AI",Color(0xFFF8BBD0), width =cardWidth.dp,
-                    onClick = {navController.navigate("aiSetup")})
 
             }
         }

@@ -1,6 +1,9 @@
 package com.gautam.quiz_app.di
 
 
+import com.gautam.quiz_app.data.remote.HistoryApi
+import com.gautam.quiz_app.data.remote.LeaderboardApi
+import com.gautam.quiz_app.data.remote.ProfileApi
 import com.gautam.quiz_app.data.remote.QuizApi
 import dagger.Module
 import dagger.Provides
@@ -64,6 +67,24 @@ object NetworkModule {
     @Singleton
     fun provideApi(retrofit: Retrofit) : QuizApi{
         return retrofit.create(QuizApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideHistoryApi(retrofit: Retrofit): HistoryApi {
+        return retrofit.create(HistoryApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideLeaderboardApi(retrofit: Retrofit): LeaderboardApi {
+        return retrofit.create(LeaderboardApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideProfileApi(retrofit: Retrofit): ProfileApi {
+        return retrofit.create(ProfileApi::class.java)
     }
 
 
