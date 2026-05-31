@@ -1,5 +1,6 @@
 package com.gautam.quiz_app.navigation
 
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -118,12 +119,13 @@ fun AppHost(innerPadding: PaddingValues) {
             // Replace with your QuizScreen composable when it exists
             // QuizScreen(section, difficulty, questionCount, timerPerQuestion, isRandom, navHostController)
             QuizScreen(
-                navController    = navHostController,
-                section          = section,
-                difficulty       = difficulty,
-                questionCount    = questionCount,
+                navController = navHostController,
+                section = section,
+                difficulty = difficulty,
+                questionCount = questionCount,
                 timerPerQuestion = timerPerQuestion,
-                isRandom         = isRandom
+                isRandom = isRandom,
+                viewModel = questionViewModel
             )
         }
         // AppHost.kt — replace the stub quizResult composable
@@ -140,13 +142,17 @@ fun AppHost(innerPadding: PaddingValues) {
 
             val quizState by questionViewModel.quizUiState.collectAsState()
 
-            // Build result model from shared ViewModel state
+            Log.d("QUIZ_RESULT", "Questions=${quizState.questions.size}")
+            Log.d("QUIZ_RESULT", "Answers=${quizState.answers.size}")
+            Log.d("QUIZ_RESULT", "CurrentIndex=${quizState.currentIndex}")
+
             val result = QuizResultUiModel(
                 section = section,
                 difficulty = difficulty,
-                score = quizState.answers.values
-                    .zip(quizState.questions)
-                    .count { (ans, q) -> ans == q.correctAnswer },
+                score = quizState.questions.indices.count { index ->
+                    quizState.answers[index] ==
+                            quizState.questions[index].correctAnswer
+                },
                 total = quizState.questions.size,
                 timeTaken = quizState.timeTaken,
                 answers = quizState.answers,

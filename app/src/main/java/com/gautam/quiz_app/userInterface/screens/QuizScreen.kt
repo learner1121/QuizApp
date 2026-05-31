@@ -69,7 +69,7 @@ fun QuizScreen(
     questionCount: Int,
     timerPerQuestion: Int,
     isRandom: Boolean,
-    viewModel: QuestionViewModel = hiltViewModel()
+    viewModel: QuestionViewModel
 ) {
     // Trigger fetch once on entry
     LaunchedEffect(section, isRandom) {

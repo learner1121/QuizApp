@@ -76,6 +76,7 @@ fun QuizResultScreen(
     result        : QuizResultUiModel,
     viewModel     : QuestionViewModel = hiltViewModel()
 ) {
+
     // Post result to backend if user is logged in
     LaunchedEffect(Unit) {
         viewModel.submitResultIfAuthenticated(result)

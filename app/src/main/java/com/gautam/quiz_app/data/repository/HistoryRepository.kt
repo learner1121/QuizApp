@@ -9,10 +9,11 @@ import javax.inject.Inject
 class HistoryRepository @Inject constructor(
     private val api: HistoryApi
 ) {
-    suspend fun getHistory(userId: String): Result<List<History>> = runCatching {
-        val response = api.getHistory(userId)
+    suspend fun getHistory(): Result<List<History>> = runCatching {
+        val response = api.getHistory()
+
         if (response.isSuccessful) {
-            response.body() ?: emptyList()
+            response.body()?.data ?: emptyList()
         } else {
             error("Server error: ${response.code()}")
         }

@@ -3,6 +3,7 @@ package com.gautam.quiz_app.data.remote
 
 import com.gautam.quiz_app.data.model.History
 import com.gautam.quiz_app.data.model.HistoryEntry
+import com.gautam.quiz_app.data.model.HistoryResponse
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -11,10 +12,8 @@ import retrofit2.http.Path
 
 interface HistoryApi {
 
-    @GET("api/history/{userId}")
-    suspend fun getHistory(
-        @Path("userId") userId: String
-    ): Response<List<History>>
+    @GET("api/history")
+    suspend fun getHistory(): Response<HistoryResponse>
 
     @POST("api/history")
     suspend fun postResult(

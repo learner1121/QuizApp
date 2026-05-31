@@ -31,7 +31,7 @@ class HistoryViewModel @Inject constructor(
 
         _uiState.value = HistoryUiState.Loading
         viewModelScope.launch {
-            repo.getHistory(user.uid).fold(
+            repo.getHistory().fold(
                 onSuccess = { list ->
                     if (list.isEmpty()) {
                         _uiState.value = HistoryUiState.Empty

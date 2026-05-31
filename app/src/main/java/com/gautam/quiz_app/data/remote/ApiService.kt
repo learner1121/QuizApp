@@ -37,5 +37,4 @@ interface QuizApi {
     suspend fun postResult(@Body entry: HistoryEntry): Response<Unit>
 
 
-
 }

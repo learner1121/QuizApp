@@ -1,7 +1,9 @@
 package com.gautam.quiz_app.userInterface.viewModel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gautam.quiz_app.data.model.HistoryEntry
 import com.gautam.quiz_app.data.model.Question
 import com.gautam.quiz_app.data.model.QuizResultUiModel
 import com.gautam.quiz_app.data.repository.LocalQuestionRepository
@@ -41,6 +43,7 @@ class QuestionViewModel @Inject constructor(
 
                 if (response.isSuccessful) {
                     val questions = response.body()?.data ?: emptyList()
+                    Log.d("QUIZ_DEBUG", "Loaded questions=${questions.size}")
 
                     // Write-through cache: store whatever the API returned
                     questions.forEach { q -> localRepo.addLocal(q.toLocal()) }
@@ -207,6 +210,8 @@ class QuestionViewModel @Inject constructor(
         isActive      = isActive
     )
 
+
+
     // ── Submit result to backend if user is logged in ──────────────────────
     fun submitResultIfAuthenticated(result: QuizResultUiModel) {
         val user = com.gautam.quiz_app.auth.FirebaseInstanceProvider
@@ -214,16 +219,27 @@ class QuestionViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                val payload = com.gautam.quiz_app.data.model.HistoryEntry(
-                    userId     = user.uid,
-                    section    = result.section,
+                val payload = HistoryEntry(
+                    section = result.section,
                     difficulty = result.difficulty,
-                    score      = result.correct,
-                    total      = result.total,
-                    timeTaken  = result.timeTaken,
-                    date       = System.currentTimeMillis()
+                    totalQuestions = result.total,
+                    attemptedQuestions = result.answers.size,
+                    correctAnswers = result.correct,
+                    wrongAnswers = result.answers.size - result.correct,
+                    score = result.correct,
+                    timeTaken = result.timeTaken
                 )
-                repo.postResult(payload)
+
+                val response = repo.postResult(payload)
+
+                if (response.isSuccessful) {
+                    Log.d("QUIZ_HISTORY", "Saved successfully")
+                } else {
+                    Log.e(
+                        "QUIZ_HISTORY",
+                        "Save failed. Code=${response.code()} Body=${response.errorBody()?.string()}"
+                    )
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
